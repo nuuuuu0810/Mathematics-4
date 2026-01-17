@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Visualizer: Responsive Nodes</title>
+    <style>
+        :root {
+            --bg-color: #f0f4f8;
+            --panel-bg: #ffffff;
+            --text-color: #2c3e50;
+            --accent-color: #2c3e50;
+            --group-bg: #f8f9fa;
+            --card-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- Layout --- */
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            width: 100%;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            height: fit-content;
+        }
+
+        h3 {
+            margin-top: 0;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+            color: var(--accent-color);
+            font-size: 1.1rem;
+        }
+
+        /* Inputs */
+        .input-group { display: flex; gap: 8px; margin-bottom: 15px; }
+        input[type="text"], input[type="number"] {
+            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;
+        }
+        button { cursor: pointer; border: none; font-weight: bold; transition: 0.2s; }
+        .btn-add { background: var(--accent-color); color: white; padding: 0 15px; border-radius: 8px; flex-shrink: 0; }
+        .btn-add:hover { opacity: 0.9; }
+
+        .item-list { list-style: none; padding: 0; margin: 0; max-height: 200px; overflow-y: auto; }
+        .item-list li {
+            background: #fff; border:1px solid #eee; padding: 8px 12px; margin-bottom: 6px; border-radius: 6px;
+            display: flex; justify-content: space-between; align-items: center; font-size: 13px;
+        }
+
+        /* Method Selector */
+        .method-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 20px; }
+        .method-btn {
+            padding: 10px 5px; border-radius: 6px; background: #eaeff5; color: #555; font-size: 11px;
+        }
+        .method-btn.active {
+            background: var(--accent-color); color: white;
+        }
+
+        /* Matrix */
+        .matrix-wrapper { overflow-x: auto; margin-top: 15px; }
+        .matrix-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .matrix-table th { color: var(--accent-color); padding: 8px; border-bottom: 2px solid #ddd; min-width: 30px; }
+        .matrix-table td { padding: 8px; border-bottom: 1px solid #eee; text-align: center; }
+        .matrix-checkbox { width: 18px; height: 18px; accent-color: var(--accent-color); cursor: pointer; }
+
+        /* --- Visualization Area --- */
+        #result-area { width: 100%; }
+        
+        .result-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+        }
+        .count-badge {
+            background: var(--accent-color); color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 1.2rem;
+        }
+
+        .groups-container {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .group-block {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            border-left: 5px solid var(--accent-color);
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+        }
+
+        .group-header {
+            background: #f8f9fa;
+            padding: 12px 20px;
+            border-bottom: 1px solid #eee;
+            font-weight: bold;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .group-content {
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+
+        /* Individual Visualization Cards */
+        .viz-card {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80px;
+            /* width needs to be flexible now */
+        }
+
+        /* --- Node Styles (Updated for Width) --- */
+        .node {
+            /* Fixed sizes removed, using min-width/padding */
+            min-width: 40px;
+            height: 40px;
+            padding: 0 12px;
+            
+            /* Capsule Shape */
+            border-radius: 20px; 
+            
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            
+            font-weight: bold; 
+            font-size: 13px; 
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 2;
+            border: 2px solid white;
+            
+            /* Text handling */
+            white-space: nowrap; /* Prevent wrapping */
+            box-sizing: border-box;
+        }
+
+        /* --- Specific Type Layouts --- */
+        /* Linear */
+        .layout-linear { display: flex; align-items: center; gap: 5px; }
+        .arrow { color: #ccc; font-size: 16px; font-weight: bold; margin: 0 2px; }
+        
+        /* Circular (Updated sizes) */
+        .layout-circular { 
+            position: relative; 
+            width: 160px; /* Increased from 100px */
+            height: 160px; 
+        }
+        .circular-bg {
+            position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
+            border: 2px dashed #ddd; border-radius: 50%;
+        }
+        .circular-node { 
+            position: absolute; 
+            transform: translate(-50%, -50%); 
+        }
+
+        /* Group/Combination */
+        .layout-group {
+            border: 2px solid #ccc; border-radius: 30px; padding: 15px;
+            display: flex; flex-wrap: wrap; gap: 8px; background: #fafafa;
+            justify-content: center;
+        }
+
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Settings Panel -->
+        <div class="panel">
+            <h3>設定・項目</h3>
+            <div class="input-group">
+                <input type="text" id="new-item-input" placeholder="項目名 (例: 東京)" onkeypress="handleEnter(event)">
+                <button class="btn-add" onclick="addItem()">追加</button>
+            </div>
+            <ul class="item-list" id="item-list"></ul>
+
+            <div style="margin: 20px 0;">
+                <label style="font-size:12px; font-weight:bold; color:#666; margin-bottom:5px; display:block;">計算方法</label>
+                <div class="method-grid">
+                    <button class="method-btn active" onclick="setMethod('permutation')" id="btn-perm">順列<br>(並べる)</button>
+                    <button class="method-btn" onclick="setMethod('circular')" id="btn-circ">円順列<br>(回す)</button>
+                    <button class="method-btn" onclick="setMethod('combination')" id="btn-comb">組合せ<br>(選ぶ)</button>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; align-items: center;">
+                    <label style="font-size:14px;">選ぶ数 (r):</label>
+                    <input type="number" id="pick-count" value="3" min="1" max="8" style="width: 60px;" onchange="updateCalc()">
+                </div>
+                <div style="font-size:14px; display:flex; align-items:center; gap:5px;">
+                    <input type="checkbox" id="allow-repetition" onchange="updateCalc()">
+                    <label for="allow-repetition" style="cursor:pointer;">重複を許す</label>
+                </div>
+            </div>
+
+             <!-- Constraints Matrix -->
+            <div style="border-top: 2px dashed #eee; padding-top:15px;">
+                <label style="font-size:12px; font-weight:bold; color:#666;">条件指定 (表形式)</label>
+                <div id="matrix-container" class="matrix-wrapper"></div>
+            </div>
+        </div>
+
+        <!-- Result Area -->
+        <div id="result-area">
+            <div class="result-header">
+                <div>
+                    <h3 style="border:none; margin:0; font-size:1.5rem;">結果一覧</h3>
+                    <p style="margin:5px 0 0 0; color:#666; font-size:0.9rem;">
+                        先頭の要素でグループ分けしています（式の構造理解のため）
+                    </p>
+                </div>
+                <div class="count-badge" id="result-count">0 通り</div>
+            </div>
+            
+            <div id="groups-output" class="groups-container">
+                <!-- Group Blocks will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        let items = ["シンガポール", "ニューヨーク", "ロンドン", "東京"];
+        let currentMethod = 'permutation'; 
+        let matrixConstraints = {}; 
+        
+        // Colors
+        const colors = ['#e74c3c', '#3498db', '#27ae60', '#f39c12', '#9b59b6', '#1abc9c', '#34495e', '#d35400'];
+
+        // --- Init ---
+        const itemListEl = document.getElementById('item-list');
+        const matrixContainer = document.getElementById('matrix-container');
+        const groupsOutput = document.getElementById('groups-output');
+        const resultCountEl = document.getElementById('result-count');
+        const pickCountInput = document.getElementById('pick-count');
+        const newItemInput = document.getElementById('new-item-input');
+
+        renderItems();
+        updateCalc();
+
+        // --- Handlers ---
+        function handleEnter(e) { if(e.key === 'Enter') addItem(); }
+
+        function addItem() {
+            const val = newItemInput.value.trim();
+            if (val && !items.includes(val)) {
+                items.push(val);
+                newItemInput.value = '';
+                renderItems();
+                updateCalc();
+            }
+        }
+
+        function deleteItem(index) {
+            items.splice(index, 1);
+            renderItems();
+            updateCalc();
+        }
+
+        function renderItems() {
+            itemListEl.innerHTML = '';
+            items.forEach((item, idx) => {
+                const col = colors[idx % colors.length];
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span style="display:flex; align-items:center; gap:8px;">
+                        <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${col};"></span>
+                        <strong style="font-size:12px;">${item}</strong>
+                    </span>
+                    <button style="color:#e74c3c; background:none;" onclick="deleteItem(${idx})">×</button>
+                `;
+                itemListEl.appendChild(li);
+            });
+        }
+
+        function setMethod(method) {
+            currentMethod = method;
+            document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+            if(method === 'permutation') document.getElementById('btn-perm').classList.add('active');
+            if(method === 'circular') document.getElementById('btn-circ').classList.add('active');
+            if(method === 'combination') document.getElementById('btn-comb').classList.add('active');
+            updateCalc();
+        }
+
+        function updateConstraint(checkbox) {
+            const item = checkbox.dataset.item;
+            const col = parseInt(checkbox.dataset.col);
+            if (!matrixConstraints[item]) matrixConstraints[item] = [];
+            matrixConstraints[item][col] = checkbox.checked;
+            calculateAndRender();
+        }
+
+        function updateCalc() {
+            renderMatrix();
+            calculateAndRender();
+        }
+
+        function renderMatrix() {
+            const r = parseInt(pickCountInput.value) || 0;
+            if (r <= 0) {
+                matrixContainer.innerHTML = '数値を正しく入力してください';
+                return;
+            }
+            let html = '<table class="matrix-table"><thead><tr><th></th>';
+            for (let i = 1; i <= r; i++) html += `<th>${i}</th>`;
+            html += '</tr></thead><tbody>';
+
+            items.forEach((item) => {
+                html += `<tr><td><strong>${item}</strong></td>`;
+                for (let colIdx = 0; colIdx < r; colIdx++) {
+                    const isChecked = matrixConstraints[item] && matrixConstraints[item][colIdx] !== undefined 
+                                      ? matrixConstraints[item][colIdx] 
+                                      : false; 
+                    html += `<td><input type="checkbox" class="matrix-checkbox" data-item="${item}" data-col="${colIdx}" ${isChecked ? 'checked' : ''} onchange="updateConstraint(this)"></td>`;
+                }
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            matrixContainer.innerHTML = html;
+        }
+
+        // --- Core Logic ---
+        function calculateAndRender() {
+            const r = parseInt(pickCountInput.value);
+            const allowRepetition = document.getElementById('allow-repetition').checked;
+            
+            if (items.length === 0 || r <= 0) {
+                groupsOutput.innerHTML = '';
+                resultCountEl.textContent = '0 通り';
+                return;
+            }
+
+            // Generate
+            let results = allowRepetition ? getPermutationsWithRepetition(items, r) : getPermutations(items, r);
+
+            // Filter Constraints
+            const allowedPerCol = [];
+            for (let i = 0; i < r; i++) {
+                let allowedItems = [];
+                let hasConstraint = false;
+                items.forEach(item => {
+                    if (matrixConstraints[item] && matrixConstraints[item][i]) {
+                        allowedItems.push(item);
+                        hasConstraint = true;
+                    }
+                });
+                allowedPerCol.push(hasConstraint ? allowedItems : null);
+            }
+
+            results = results.filter(seq => {
+                for (let i = 0; i < seq.length; i++) {
+                    const allowed = allowedPerCol[i];
+                    if (allowed !== null && !allowed.includes(seq[i])) return false;
+                }
+                return true;
+            });
+
+            // Process based on Method
+            if (currentMethod === 'combination') {
+                const uniqueSet = new Set();
+                const filtered = [];
+                results.forEach(seq => {
+                    const sortedSeq = [...seq].sort();
+                    const key = sortedSeq.join('||');
+                    if (!uniqueSet.has(key)) {
+                        uniqueSet.add(key);
+                        filtered.push(sortedSeq);
+                    }
+                });
+                results = filtered.sort(); 
+            } else if (currentMethod === 'circular') {
+                const uniqueSet = new Set();
+                const filtered = [];
+                results.forEach(seq => {
+                    let minIdx = 0;
+                    for(let i=1; i<seq.length; i++) {
+                        if (seq[i] < seq[minIdx]) minIdx = i;
+                    }
+                    const rotated = [...seq.slice(minIdx), ...seq.slice(0, minIdx)];
+                    const key = rotated.join('||');
+                    
+                    if (!uniqueSet.has(key)) {
+                        uniqueSet.add(key);
+                        filtered.push(rotated);
+                    }
+                });
+                results = filtered.sort();
+            }
+
+            resultCountEl.textContent = `${results.length} 通り`;
+            renderGroups(results);
+        }
+
+        function getPermutations(pool, k) {
+            if (k === 0) return [[]];
+            let res = [];
+            for (let i = 0; i < pool.length; i++) {
+                const remaining = [...pool];
+                remaining.splice(i, 1);
+                getPermutations(remaining, k - 1).forEach(s => res.push([pool[i], ...s]));
+            }
+            return res;
+        }
+
+        function getPermutationsWithRepetition(pool, k) {
+            if (k === 0) return [[]];
+            let res = [];
+            pool.forEach(p => {
+                getPermutationsWithRepetition(pool, k - 1).forEach(s => res.push([p, ...s]));
+            });
+            return res;
+        }
+
+        // --- Grouped Rendering ---
+        function renderGroups(results) {
+            groupsOutput.innerHTML = '';
+            
+            if (results.length === 0) return;
+            if (results.length > 200) {
+                groupsOutput.innerHTML = '<div style="text-align:center; padding:20px;">結果が多すぎるため、最初の200件のみ計算・表示します。</div>';
+                results = results.slice(0, 200);
+            }
+
+            const groups = {};
+            results.forEach(seq => {
+                const key = seq[0];
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(seq);
+            });
+
+            const sortedKeys = Object.keys(groups).sort();
+
+            sortedKeys.forEach(key => {
+                const groupItems = groups[key];
+                
+                const block = document.createElement('div');
+                block.className = 'group-block';
+                
+                const keyColor = getItemColor(key);
+                block.style.borderLeftColor = keyColor;
+
+                const header = document.createElement('div');
+                header.className = 'group-header';
+                
+                let labelText = "";
+                if(currentMethod === 'permutation') labelText = `「${key}」から始まる`;
+                else if(currentMethod === 'circular') labelText = `「${key}」を固定 (基準)`;
+                else labelText = `「${key}」を含む (辞書順)`;
+
+                header.innerHTML = `
+                    <span style="display:flex; align-items:center; gap:10px;">
+                        <span style="width:14px; height:14px; background:${keyColor}; border-radius:50%; display:inline-block;"></span>
+                        ${labelText}
+                    </span>
+                    <span class="group-count">${groupItems.length} 通り</span>
+                `;
+                block.appendChild(header);
+
+                const content = document.createElement('div');
+                content.className = 'group-content';
+                
+                groupItems.forEach(seq => {
+                    const viz = document.createElement('div');
+                    viz.className = 'viz-card';
+                    if (currentMethod === 'permutation') viz.appendChild(renderLinear(seq));
+                    else if (currentMethod === 'circular') viz.appendChild(renderCircular(seq));
+                    else viz.appendChild(renderGroup(seq));
+                    content.appendChild(viz);
+                });
+
+                block.appendChild(content);
+                groupsOutput.appendChild(block);
+            });
+        }
+
+        // --- Visualizers ---
+        function getItemColor(val) {
+            const idx = items.indexOf(val);
+            return idx >= 0 ? colors[idx % colors.length] : '#999';
+        }
+        
+        function createNode(val) {
+            const div = document.createElement('div');
+            div.className = 'node';
+            div.style.backgroundColor = getItemColor(val);
+            div.textContent = val;
+            return div;
+        }
+
+        function renderLinear(seq) {
+            const el = document.createElement('div');
+            el.className = 'layout-linear';
+            seq.forEach((val, i) => {
+                el.appendChild(createNode(val));
+                if(i < seq.length - 1) {
+                    const arrow = document.createElement('span');
+                    arrow.className = 'arrow';
+                    arrow.innerHTML = '→';
+                    el.appendChild(arrow);
+                }
+            });
+            return el;
+        }
+
+        function renderCircular(seq) {
+            const el = document.createElement('div');
+            el.className = 'layout-circular';
+            const bg = document.createElement('div');
+            bg.className = 'circular-bg';
+            el.appendChild(bg);
+
+            // Radius set to 60 to allow for wider nodes
+            const r = 60; 
+            const cx = 80, cy = 80;
+            const step = (2 * Math.PI) / seq.length;
+
+            seq.forEach((val, i) => {
+                const angle = i * step - (Math.PI / 2);
+                const x = cx + r * Math.cos(angle);
+                const y = cy + r * Math.sin(angle);
+                const node = createNode(val);
+                node.classList.add('circular-node');
+                node.style.left = `${x}px`;
+                node.style.top = `${y}px`;
+                
+                if (i===0) {
+                    node.style.border = "2px solid #333";
+                    node.style.zIndex = 10;
+                }
+                
+                el.appendChild(node);
+            });
+            return el;
+        }
+
+        function renderGroup(seq) {
+            const el = document.createElement('div');
+            el.className = 'layout-group';
+            seq.forEach(val => el.appendChild(createNode(val)));
+            return el;
+        }
+    </script>
+</body>
+</html>
