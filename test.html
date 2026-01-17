@@ -12,7 +12,7 @@
             --accent-color: #2c3e50;
             --tree-line-color: #005c7a;
             --tree-line-width: 3px;
-            --node-width: 140px; /* 縦の位置を揃えるための固定幅 */
+            --node-width: 140px;
             --card-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
 
@@ -133,17 +133,22 @@
         #result-area { width: 100%; }
         
         .result-header {
-            display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; flex-wrap: wrap; gap: 15px;
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 15px;
         }
         .header-left h3 { border: none; margin: 0; padding:0; font-size: 1.5rem; }
-        .header-left p { margin: 5px 0 0 0; color: #666; font-size: 0.9rem; }
 
-        /* New Controls Row for View Toggle */
+        .count-badge {
+            background: var(--accent-color); color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 1.2rem;
+            margin-left: auto;
+        }
+
+        /* Controls Row */
         .controls-row {
             display: flex;
-            margin-bottom: 20px;
+            justify-content: flex-end;
+            margin-bottom: 25px;
             border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
+            padding-bottom: 15px;
         }
 
         .view-toggle {
@@ -158,11 +163,6 @@
         }
         .view-btn svg { width: 16px; height: 16px; }
 
-        .count-badge {
-            background: var(--accent-color); color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 1.2rem;
-            margin-left: auto;
-        }
-
         /* --- Groups Layout --- */
         .groups-container { display: flex; flex-direction: column; gap: 25px; }
         .group-block {
@@ -175,7 +175,7 @@
         .group-content.visual-mode { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
         .group-content.tree-mode { display: block; padding: 30px; overflow-x: auto; }
 
-        /* Tree CSS (Aligned Columns) */
+        /* Tree CSS */
         .tf-tree { display: flex; align-items: center; font-family: "Helvetica Neue", Arial, sans-serif; }
         .tf-nc {
             padding: 5px 10px; font-weight: bold; font-size: 14px; color: #000; white-space: nowrap; background: #fff; z-index: 2;
@@ -252,7 +252,7 @@
 
         <!-- RIGHT PANEL -->
         <div id="result-area">
-            <!-- Header Row: Title & Count -->
+            <!-- Header -->
             <div class="result-header">
                 <div class="header-left">
                     <h3>結果一覧</h3>
@@ -260,16 +260,14 @@
                 <div class="count-badge" id="result-count">0 通り</div>
             </div>
 
-            <!-- Controls Row: View Toggle (Moved here) -->
+            <!-- Controls Row -->
             <div class="controls-row">
                 <div class="view-toggle">
                     <button class="view-btn active" id="btn-view-visual" onclick="setViewMode('visual')">
-                        <!-- Icon Grid -->
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                         図解
                     </button>
                     <button class="view-btn" id="btn-view-tree" onclick="setViewMode('tree')">
-                        <!-- Icon Tree -->
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20"></path><path d="M2 12v-6c0-1.1.9-2 2-2h4"></path><path d="M2 12v6c0 1.1.9 2 2 2h4"></path><path d="M12 12h4"></path><circle cx="20" cy="12" r="2"></circle><circle cx="10" cy="4" r="2"></circle><circle cx="10" cy="20" r="2"></circle></svg>
                         樹形図
                     </button>
@@ -281,16 +279,14 @@
     </div>
 
     <script>
-        // Data Structure: { name: string, count: number, distinct: boolean }
+        // Data Structure
         let itemsData = [
             { name: "ニューヨーク", count: 1, distinct: false },
             { name: "ロンドン", count: 1, distinct: false },
             { name: "東京", count: 1, distinct: false }
         ];
         
-        // Flattened list of strings used for actual calculation
         let currentPool = [];
-
         let currentMethod = 'permutation'; 
         let viewMode = 'visual'; 
         let matrixConstraints = {}; 
@@ -310,9 +306,8 @@
 
         function addItem() {
             const val = newItemInput.value.trim();
-            // Allow same name? Ideally no, to avoid confusion.
             if (val && !itemsData.some(i => i.name === val)) {
-                itemsData.push({ name: val, count: 1, distinct: true }); // Default distinct for clarity
+                itemsData.push({ name: val, count: 1, distinct: true }); 
                 newItemInput.value = '';
                 renderSettings();
                 updatePool();
@@ -391,7 +386,6 @@
         }
 
         function updatePool() {
-            // Generate pool based on settings
             currentPool = [];
             itemsData.forEach(item => {
                 for(let i=1; i<=item.count; i++) {
@@ -403,7 +397,6 @@
                              currentPool.push(`${item.name}${suffix}`);
                         }
                     } else {
-                        // Indistinct -> just name
                         currentPool.push(item.name);
                     }
                 }
@@ -440,6 +433,25 @@
             });
             html += '</tbody></table>';
             matrixContainer.innerHTML = html;
+        }
+
+        // --- CORE CALCULATION LOGIC ---
+
+        function getItemIndex(val) {
+            const idx = itemsData.findIndex(d => val === d.name || val.startsWith(d.name));
+            return idx >= 0 ? idx : 9999;
+        }
+
+        // ソート関数: リストの上にあるものを優先する
+        function compareSequences(seqA, seqB) {
+            const len = Math.min(seqA.length, seqB.length);
+            for(let i=0; i<len; i++) {
+                const idxA = getItemIndex(seqA[i]);
+                const idxB = getItemIndex(seqB[i]);
+                if (idxA !== idxB) return idxA - idxB;
+                if (seqA[i] !== seqB[i]) return seqA[i].localeCompare(seqB[i]);
+            }
+            return seqA.length - seqB.length;
         }
 
         function calculateAndRender() {
@@ -487,19 +499,19 @@
             valResults.forEach(seq => {
                 let keySeq = [...seq];
                 if (currentMethod === 'combination') {
-                    keySeq.sort();
+                    // 組合せ：要素を「登録順」に並び替えて正規化する
+                    keySeq.sort(compareSequences);
                 } else if (currentMethod === 'circular') {
-                    let minStr = keySeq.join('||');
-                    let bestRot = [...keySeq];
+                    // 円順列：回転しても変わらないものの中で、「登録順で先頭が最も若いもの」を代表にする
+                    let minRot = [...keySeq];
                     for(let i=1; i<keySeq.length; i++) {
                         const rot = [...keySeq.slice(i), ...keySeq.slice(0, i)];
-                        const str = rot.join('||');
-                        if (str < minStr) {
-                            minStr = str;
-                            bestRot = rot;
+                        // 文字列比較ではなく、登録順比較 (compareSequences) を使う
+                        if (compareSequences(rot, minRot) < 0) {
+                            minRot = rot;
                         }
                     }
-                    keySeq = bestRot;
+                    keySeq = minRot;
                 }
 
                 const key = keySeq.join('||');
@@ -509,8 +521,9 @@
                 }
             });
 
-            // Standard lexicographical sort (for consistent display within groups)
-            finalResults.sort();
+            // 最終リストのソートも登録順で行う
+            finalResults.sort(compareSequences);
+
             resultCountEl.textContent = `${finalResults.length} 通り`;
             renderGroups(finalResults);
         }
@@ -527,17 +540,6 @@
             return res;
         }
 
-        // Helper to find original index of item to control sorting order
-        function getItemRank(val) {
-            // Remove suffix for name matching
-            const baseName = val.replace(/[①-⑳\(\)\d]/g, '');
-            // Find in itemsData
-            let idx = itemsData.findIndex(i => i.name === baseName);
-            // If strict match fails, try startsWith (though strict is better for robustness)
-            if(idx < 0) idx = itemsData.findIndex(i => val.startsWith(i.name));
-            return idx;
-        }
-
         function renderGroups(results) {
             groupsOutput.innerHTML = '';
             if (results.length === 0) return;
@@ -549,13 +551,12 @@
                 groups[key].push(seq);
             });
 
-            // SORT MODIFICATION: Use item rank instead of alphabetical
+            // グループの表示順も登録順
             const sortedKeys = Object.keys(groups).sort((a, b) => {
-                const rankA = getItemRank(a);
-                const rankB = getItemRank(b);
-                // If ranks are equal (shouldn't happen for distinct types) or not found, fallback to string sort
-                if (rankA === rankB) return a.localeCompare(b);
-                return rankA - rankB;
+                const idxA = getItemIndex(a);
+                const idxB = getItemIndex(b);
+                if (idxA !== idxB) return idxA - idxB;
+                return a.localeCompare(b);
             });
 
             sortedKeys.forEach(key => {
@@ -563,7 +564,6 @@
                 
                 const block = document.createElement('div');
                 block.className = 'group-block';
-                
                 const keyColor = getItemColor(key);
                 block.style.borderLeftColor = keyColor;
 
@@ -604,12 +604,6 @@
                     
                     const remainingSeqs = groupItems.map(s => s.slice(1));
                     const trie = buildTrie(remainingSeqs);
-                    // Tree visualization logic...
-                    // Since trie keys are sorted alphabetically inside createBranch, 
-                    // we might want them to respect rank too? 
-                    // But usually branches are OK alphabetical. 
-                    // Let's strictly follow "Item Order" for the Root Groups (done above).
-                    // For branches, let's also apply rank sort for consistency.
                     
                     const rootBranch = document.createElement('div');
                     rootBranch.className = 'tf-tree'; 
@@ -625,9 +619,13 @@
                         const childGroup = document.createElement('div');
                         childGroup.className = 'tf-children';
                         
-                        // Apply Rank Sort to children keys too
-                        const sortedChildKeys = Object.keys(trie).sort((a,b) => getItemRank(a) - getItemRank(b));
-                        
+                        const sortedChildKeys = Object.keys(trie).sort((a, b) => {
+                            const idxA = getItemIndex(a);
+                            const idxB = getItemIndex(b);
+                            if (idxA !== idxB) return idxA - idxB;
+                            return a.localeCompare(b);
+                        });
+
                         sortedChildKeys.forEach(k => {
                             childGroup.appendChild(createBranch(k, trie[k]));
                         });
@@ -641,7 +639,6 @@
             });
         }
 
-        // Helper recursive function for tree with Rank Sorting
         function createBranch(label, childrenObj) {
             const branch = document.createElement('div');
             branch.className = 'tf-branch';
@@ -652,8 +649,12 @@
 
             const childKeys = Object.keys(childrenObj);
             if (childKeys.length > 0) {
-                // Apply Rank Sort
-                childKeys.sort((a, b) => getItemRank(a) - getItemRank(b));
+                childKeys.sort((a, b) => {
+                    const idxA = getItemIndex(a);
+                    const idxB = getItemIndex(b);
+                    if (idxA !== idxB) return idxA - idxB;
+                    return a.localeCompare(b);
+                });
 
                 const conn = document.createElement('div');
                 conn.className = 'tf-connector';
@@ -681,12 +682,8 @@
         }
 
         function getItemColor(val) {
-            // Remove suffix for color matching
-            const baseName = val.replace(/[①-⑳\(\)\d]/g, '');
-            // Find in itemsData
-            let idx = itemsData.findIndex(i => i.name === baseName);
-            if(idx < 0) idx = itemsData.findIndex(i => val.startsWith(i.name));
-            return idx >= 0 ? colors[idx % colors.length] : '#999';
+            const idx = getItemIndex(val);
+            return idx < 9999 ? colors[idx % colors.length] : '#999';
         }
 
         function createNode(val) {
