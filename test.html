@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Math Visualizer: Responsive Nodes</title>
+    <title>Math Tree Diagram (Unlimited)</title>
     <style>
         :root {
-            --bg-color: #f0f4f8;
+            --bg-color: #f4f7f9;
             --panel-bg: #ffffff;
-            --text-color: #2c3e50;
+            --text-color: #000;
             --accent-color: #2c3e50;
-            --group-bg: #f8f9fa;
+            --tree-line-color: #005c7a; /* 濃い青緑色 */
+            --tree-line-width: 3px;     /* 太い線 */
+            --node-width: 130px;        /* 列幅を揃えるための固定幅 */
             --card-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
 
@@ -72,9 +74,7 @@
         .method-btn {
             padding: 10px 5px; border-radius: 6px; background: #eaeff5; color: #555; font-size: 11px;
         }
-        .method-btn.active {
-            background: var(--accent-color); color: white;
-        }
+        .method-btn.active { background: var(--accent-color); color: white; }
 
         /* Matrix */
         .matrix-wrapper { overflow-x: auto; margin-top: 15px; }
@@ -83,21 +83,36 @@
         .matrix-table td { padding: 8px; border-bottom: 1px solid #eee; text-align: center; }
         .matrix-checkbox { width: 18px; height: 18px; accent-color: var(--accent-color); cursor: pointer; }
 
-        /* --- Visualization Area --- */
+        /* --- Right Panel --- */
         #result-area { width: 100%; }
         
         .result-header {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;
         }
+        
+        .header-left h3 { border: none; margin: 0; font-size: 1.5rem; }
+        .header-left p { margin: 5px 0 0 0; color: #666; font-size: 0.9rem; }
+
+        /* Toggle Switch */
+        .view-toggle {
+            display: flex; background: #eaeff5; padding: 4px; border-radius: 8px;
+        }
+        .view-btn {
+            padding: 8px 16px; border-radius: 6px; background: transparent; color: #666; font-size: 13px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .view-btn.active {
+            background: white; color: var(--accent-color); box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .view-btn svg { width: 16px; height: 16px; }
+
         .count-badge {
             background: var(--accent-color); color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 1.2rem;
+            margin-left: auto;
         }
 
-        .groups-container {
-            display: flex;
-            flex-direction: column;
-            gap: 25px;
-        }
+        /* --- Groups Layout --- */
+        .groups-container { display: flex; flex-direction: column; gap: 25px; }
 
         .group-block {
             background: var(--panel-bg);
@@ -108,88 +123,117 @@
         }
 
         .group-header {
-            background: #f8f9fa;
-            padding: 12px 20px;
-            border-bottom: 1px solid #eee;
-            font-weight: bold;
-            color: #555;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background: #f8f9fa; padding: 12px 20px; border-bottom: 1px solid #eee;
+            font-weight: bold; color: #555; display: flex; justify-content: space-between; align-items: center;
         }
 
         .group-content {
             padding: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            align-items: center;
+        }
+        
+        .group-content.visual-mode {
+            display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
         }
 
-        /* Individual Visualization Cards */
-        .viz-card {
-            background: white;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 15px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 80px;
-            /* width needs to be flexible now */
+        .group-content.tree-mode {
+            display: block;
+            padding: 30px;
+            overflow-x: auto;
         }
 
-        /* --- Node Styles (Updated for Width) --- */
-        .node {
-            /* Fixed sizes removed, using min-width/padding */
-            min-width: 40px;
-            height: 40px;
-            padding: 0 12px;
-            
-            /* Capsule Shape */
-            border-radius: 20px; 
-            
-            display: flex; 
-            align-items: center; 
-            justify-content: center;
-            
-            font-weight: bold; 
-            font-size: 13px; 
-            color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        /* =========================================
+           Tree Diagram Styles (Aligned)
+           ========================================= */
+        
+        .tf-tree {
+            display: flex;
+            align-items: center;
+            font-family: "Helvetica Neue", Arial, sans-serif;
+        }
+
+        /* Node Text (Fixed Width for Alignment) */
+        .tf-nc {
+            padding: 5px 10px;
+            font-weight: bold;
+            font-size: 15px; 
+            color: #000;
+            white-space: nowrap;
+            background: #fff;
             z-index: 2;
-            border: 2px solid white;
             
-            /* Text handling */
-            white-space: nowrap; /* Prevent wrapping */
-            box-sizing: border-box;
+            width: var(--node-width); /* Fixed width aligns columns */
+            text-align: center;
+            display: flex;
+            justify-content: center;
         }
 
-        /* --- Specific Type Layouts --- */
-        /* Linear */
+        .tf-connector {
+            width: 25px; 
+            height: var(--tree-line-width);
+            background-color: var(--tree-line-color);
+        }
+
+        .tf-children {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tf-branch {
+            display: flex;
+            align-items: center;
+            position: relative;
+            padding-left: 25px; 
+        }
+
+        /* Horizontal Line */
+        .tf-branch::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 25px;
+            height: var(--tree-line-width);
+            background-color: var(--tree-line-color);
+            transform: translateY(-50%);
+        }
+
+        /* Vertical Line */
+        .tf-branch::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            width: var(--tree-line-width);
+            background-color: var(--tree-line-color);
+        }
+
+        .tf-branch:only-child::after { display: none; }
+        .tf-branch:first-child:not(:only-child)::after { top: 50%; height: 50%; }
+        .tf-branch:last-child:not(:only-child)::after { top: 0; height: 50%; }
+        .tf-branch:not(:first-child):not(:last-child)::after { top: 0; height: 100%; }
+
+        /* --- Visual Mode Styles --- */
+        .viz-card {
+            background: white; border: 1px solid #eee; border-radius: 8px; padding: 15px;
+            display: flex; justify-content: center; align-items: center; min-height: 80px;
+        }
+        .node {
+            min-width: 40px; height: 40px; padding: 0 12px; border-radius: 20px; 
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 13px; color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 2; border: 2px solid white;
+            white-space: nowrap; box-sizing: border-box;
+        }
         .layout-linear { display: flex; align-items: center; gap: 5px; }
         .arrow { color: #ccc; font-size: 16px; font-weight: bold; margin: 0 2px; }
-        
-        /* Circular (Updated sizes) */
-        .layout-circular { 
-            position: relative; 
-            width: 160px; /* Increased from 100px */
-            height: 160px; 
-        }
+        .layout-circular { position: relative; width: 160px; height: 160px; }
         .circular-bg {
             position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
             border: 2px dashed #ddd; border-radius: 50%;
         }
-        .circular-node { 
-            position: absolute; 
-            transform: translate(-50%, -50%); 
-        }
-
-        /* Group/Combination */
+        .circular-node { position: absolute; transform: translate(-50%, -50%); }
         .layout-group {
             border: 2px solid #ccc; border-radius: 30px; padding: 15px;
-            display: flex; flex-wrap: wrap; gap: 8px; background: #fafafa;
-            justify-content: center;
+            display: flex; flex-wrap: wrap; gap: 8px; background: #fafafa; justify-content: center;
         }
 
         @media (max-width: 900px) {
@@ -200,7 +244,6 @@
 <body>
 
     <div class="container">
-        <!-- Settings Panel -->
         <div class="panel">
             <h3>設定・項目</h3>
             <div class="input-group">
@@ -227,41 +270,44 @@
                 </div>
             </div>
 
-             <!-- Constraints Matrix -->
             <div style="border-top: 2px dashed #eee; padding-top:15px;">
                 <label style="font-size:12px; font-weight:bold; color:#666;">条件指定 (表形式)</label>
                 <div id="matrix-container" class="matrix-wrapper"></div>
             </div>
         </div>
 
-        <!-- Result Area -->
         <div id="result-area">
             <div class="result-header">
-                <div>
-                    <h3 style="border:none; margin:0; font-size:1.5rem;">結果一覧</h3>
-                    <p style="margin:5px 0 0 0; color:#666; font-size:0.9rem;">
-                        先頭の要素でグループ分けしています（式の構造理解のため）
-                    </p>
+                <div class="header-left">
+                    <h3>結果一覧</h3>
+                    <p>すべてのパターンを表示します（制限なし）</p>
                 </div>
+                
+                <div class="view-toggle">
+                    <button class="view-btn active" id="btn-view-visual" onclick="setViewMode('visual')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                        図解モード
+                    </button>
+                    <button class="view-btn" id="btn-view-tree" onclick="setViewMode('tree')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20"></path><path d="M2 12v-6c0-1.1.9-2 2-2h4"></path><path d="M2 12v6c0 1.1.9 2 2 2h4"></path><path d="M12 12h4"></path><circle cx="20" cy="12" r="2"></circle><circle cx="10" cy="4" r="2"></circle><circle cx="10" cy="20" r="2"></circle></svg>
+                        樹形図モード
+                    </button>
+                </div>
+
                 <div class="count-badge" id="result-count">0 通り</div>
             </div>
             
-            <div id="groups-output" class="groups-container">
-                <!-- Group Blocks will be injected here -->
-            </div>
+            <div id="groups-output" class="groups-container"></div>
         </div>
     </div>
 
     <script>
-        // --- State ---
         let items = ["シンガポール", "ニューヨーク", "ロンドン", "東京"];
         let currentMethod = 'permutation'; 
+        let viewMode = 'visual'; 
         let matrixConstraints = {}; 
-        
-        // Colors
         const colors = ['#e74c3c', '#3498db', '#27ae60', '#f39c12', '#9b59b6', '#1abc9c', '#34495e', '#d35400'];
 
-        // --- Init ---
         const itemListEl = document.getElementById('item-list');
         const matrixContainer = document.getElementById('matrix-container');
         const groupsOutput = document.getElementById('groups-output');
@@ -272,7 +318,6 @@
         renderItems();
         updateCalc();
 
-        // --- Handlers ---
         function handleEnter(e) { if(e.key === 'Enter') addItem(); }
 
         function addItem() {
@@ -316,6 +361,13 @@
             updateCalc();
         }
 
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.getElementById('btn-view-visual').classList.toggle('active', mode === 'visual');
+            document.getElementById('btn-view-tree').classList.toggle('active', mode === 'tree');
+            calculateAndRender(); 
+        }
+
         function updateConstraint(checkbox) {
             const item = checkbox.dataset.item;
             const col = parseInt(checkbox.dataset.col);
@@ -353,7 +405,6 @@
             matrixContainer.innerHTML = html;
         }
 
-        // --- Core Logic ---
         function calculateAndRender() {
             const r = parseInt(pickCountInput.value);
             const allowRepetition = document.getElementById('allow-repetition').checked;
@@ -364,10 +415,8 @@
                 return;
             }
 
-            // Generate
             let results = allowRepetition ? getPermutationsWithRepetition(items, r) : getPermutations(items, r);
 
-            // Filter Constraints
             const allowedPerCol = [];
             for (let i = 0; i < r; i++) {
                 let allowedItems = [];
@@ -389,7 +438,6 @@
                 return true;
             });
 
-            // Process based on Method
             if (currentMethod === 'combination') {
                 const uniqueSet = new Set();
                 const filtered = [];
@@ -412,7 +460,6 @@
                     }
                     const rotated = [...seq.slice(minIdx), ...seq.slice(0, minIdx)];
                     const key = rotated.join('||');
-                    
                     if (!uniqueSet.has(key)) {
                         uniqueSet.add(key);
                         filtered.push(rotated);
@@ -445,15 +492,11 @@
             return res;
         }
 
-        // --- Grouped Rendering ---
         function renderGroups(results) {
             groupsOutput.innerHTML = '';
             
+            // 制限解除（すべての結果を表示）
             if (results.length === 0) return;
-            if (results.length > 200) {
-                groupsOutput.innerHTML = '<div style="text-align:center; padding:20px;">結果が多すぎるため、最初の200件のみ計算・表示します。</div>';
-                results = results.slice(0, 200);
-            }
 
             const groups = {};
             results.forEach(seq => {
@@ -493,26 +536,96 @@
                 const content = document.createElement('div');
                 content.className = 'group-content';
                 
-                groupItems.forEach(seq => {
-                    const viz = document.createElement('div');
-                    viz.className = 'viz-card';
-                    if (currentMethod === 'permutation') viz.appendChild(renderLinear(seq));
-                    else if (currentMethod === 'circular') viz.appendChild(renderCircular(seq));
-                    else viz.appendChild(renderGroup(seq));
-                    content.appendChild(viz);
-                });
+                if (viewMode === 'visual') {
+                    content.classList.add('visual-mode');
+                    content.classList.remove('tree-mode');
+                    groupItems.forEach(seq => {
+                        const viz = document.createElement('div');
+                        viz.className = 'viz-card';
+                        if (currentMethod === 'permutation') viz.appendChild(renderLinear(seq));
+                        else if (currentMethod === 'circular') viz.appendChild(renderCircular(seq));
+                        else viz.appendChild(renderGroup(seq));
+                        content.appendChild(viz);
+                    });
+                } else {
+                    content.classList.add('tree-mode');
+                    content.classList.remove('visual-mode');
+                    
+                    const remainingSeqs = groupItems.map(s => s.slice(1));
+                    const trie = buildTrie(remainingSeqs);
+
+                    function createBranch(label, childrenObj) {
+                        const branch = document.createElement('div');
+                        branch.className = 'tf-branch';
+
+                        const text = document.createElement('div');
+                        text.className = 'tf-nc';
+                        text.textContent = label;
+                        branch.appendChild(text);
+
+                        const childKeys = Object.keys(childrenObj).sort();
+                        if (childKeys.length > 0) {
+                            const conn = document.createElement('div');
+                            conn.className = 'tf-connector';
+                            branch.appendChild(conn);
+
+                            const childGroup = document.createElement('div');
+                            childGroup.className = 'tf-children';
+
+                            childKeys.forEach(k => {
+                                childGroup.appendChild(createBranch(k, childrenObj[k]));
+                            });
+                            branch.appendChild(childGroup);
+                        }
+                        return branch;
+                    }
+
+                    const rootBranch = document.createElement('div');
+                    rootBranch.className = 'tf-tree'; 
+
+                    const rootText = document.createElement('div');
+                    rootText.className = 'tf-nc';
+                    rootText.textContent = key;
+                    rootBranch.appendChild(rootText);
+
+                    if (Object.keys(trie).length > 0) {
+                        const conn = document.createElement('div');
+                        conn.className = 'tf-connector';
+                        rootBranch.appendChild(conn);
+
+                        const childGroup = document.createElement('div');
+                        childGroup.className = 'tf-children';
+                        
+                        Object.keys(trie).sort().forEach(k => {
+                            childGroup.appendChild(createBranch(k, trie[k]));
+                        });
+                        rootBranch.appendChild(childGroup);
+                    }
+
+                    content.appendChild(rootBranch);
+                }
 
                 block.appendChild(content);
                 groupsOutput.appendChild(block);
             });
         }
 
-        // --- Visualizers ---
+        function buildTrie(sequences) {
+            let root = {};
+            sequences.forEach(seq => {
+                let current = root;
+                seq.forEach(val => {
+                    if (!current[val]) current[val] = {};
+                    current = current[val];
+                });
+            });
+            return root;
+        }
+
         function getItemColor(val) {
             const idx = items.indexOf(val);
             return idx >= 0 ? colors[idx % colors.length] : '#999';
         }
-        
         function createNode(val) {
             const div = document.createElement('div');
             div.className = 'node';
@@ -520,7 +633,6 @@
             div.textContent = val;
             return div;
         }
-
         function renderLinear(seq) {
             const el = document.createElement('div');
             el.className = 'layout-linear';
@@ -535,19 +647,14 @@
             });
             return el;
         }
-
         function renderCircular(seq) {
             const el = document.createElement('div');
             el.className = 'layout-circular';
             const bg = document.createElement('div');
             bg.className = 'circular-bg';
             el.appendChild(bg);
-
-            // Radius set to 60 to allow for wider nodes
-            const r = 60; 
-            const cx = 80, cy = 80;
+            const r = 60; const cx = 80, cy = 80;
             const step = (2 * Math.PI) / seq.length;
-
             seq.forEach((val, i) => {
                 const angle = i * step - (Math.PI / 2);
                 const x = cx + r * Math.cos(angle);
@@ -556,17 +663,11 @@
                 node.classList.add('circular-node');
                 node.style.left = `${x}px`;
                 node.style.top = `${y}px`;
-                
-                if (i===0) {
-                    node.style.border = "2px solid #333";
-                    node.style.zIndex = 10;
-                }
-                
+                if (i===0) { node.style.border = "2px solid #333"; node.style.zIndex = 10; }
                 el.appendChild(node);
             });
             return el;
         }
-
         function renderGroup(seq) {
             const el = document.createElement('div');
             el.className = 'layout-group';
