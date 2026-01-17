@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Math Tree Diagram (Advanced Settings)</title>
+    <title>中等数学科教育法Ⅳ 順列・組合せ</title>
     <style>
         :root {
             --bg-color: #f4f7f9;
@@ -231,7 +231,7 @@
             </div>
 
             <div style="display:flex; justify-content:space-between; margin-bottom:10px; align-items: center;">
-                <label style="font-size:14px;">選ぶ数 (r):</label>
+                <label style="font-size:14px;">選ぶ数:</label>
                 <input type="number" id="pick-count" value="3" min="1" max="10" style="width: 60px; padding:5px;" onchange="updateCalc()">
             </div>
 
@@ -348,7 +348,7 @@
                         
                         <label style="margin-left:10px; display:flex; align-items:center; gap:5px; cursor:pointer;">
                             <input type="checkbox" ${item.distinct ? 'checked' : ''} onchange="toggleDistinct(${idx})">
-                            区別する(①②)
+                            区別する
                         </label>
                     </div>
                 `;
