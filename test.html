@@ -133,10 +133,19 @@
         #result-area { width: 100%; }
         
         .result-header {
-            display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;
+            display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; flex-wrap: wrap; gap: 15px;
         }
         .header-left h3 { border: none; margin: 0; padding:0; font-size: 1.5rem; }
         .header-left p { margin: 5px 0 0 0; color: #666; font-size: 0.9rem; }
+
+        /* New Controls Row for View Toggle */
+        .controls-row {
+            display: flex;
+            justify-content: flex-end; /* 右寄せ */
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
 
         .view-toggle {
             display: flex; background: #eaeff5; padding: 4px; border-radius: 8px;
@@ -244,11 +253,16 @@
 
         <!-- RIGHT PANEL -->
         <div id="result-area">
+            <!-- Header Row: Title & Count -->
             <div class="result-header">
                 <div class="header-left">
                     <h3>結果一覧</h3>
                 </div>
-                
+                <div class="count-badge" id="result-count">0 通り</div>
+            </div>
+
+            <!-- Controls Row: View Toggle (Moved here) -->
+            <div class="controls-row">
                 <div class="view-toggle">
                     <button class="view-btn active" id="btn-view-visual" onclick="setViewMode('visual')">
                         <!-- Icon Grid -->
@@ -261,8 +275,6 @@
                         樹形図
                     </button>
                 </div>
-
-                <div class="count-badge" id="result-count">0 通り</div>
             </div>
             
             <div id="groups-output" class="groups-container"></div>
@@ -385,9 +397,6 @@
             itemsData.forEach(item => {
                 for(let i=1; i<=item.count; i++) {
                     if (item.distinct) {
-                        // If count is 1, maybe no suffix? Let's add suffix if >1 or force distinct requested
-                        // Generally if "Distinct" is checked, we add number even if 1? No, usually 1 doesn't need it.
-                        // But to be safe if user toggles:
                         if (item.count === 1) {
                              currentPool.push(item.name);
                         } else {
@@ -416,35 +425,13 @@
                 return;
             }
             
-            // For matrix, we want unique labels to control constraints.
-            // If we have "Red, Red", showing two rows of "Red" is confusing but necessary if we want to constrain specific positions?
-            // Actually, if they are indistinct, constraining "The first Red" vs "The second Red" is mathematically weird but structurally possible.
-            // Let's list all elements in pool.
-            
             let html = '<table class="matrix-table"><thead><tr><th></th>';
             for (let i = 1; i <= r; i++) html += `<th>${i}</th>`;
             html += '</tr></thead><tbody>';
 
-            // To avoid huge tables, maybe just use unique items?
-            // If items are "Red, Red", user usually means "Any Red can go here".
-            // If they are "Red1, Red2", they are distinct rows.
-            // Let's iterate currentPool. 
-            // Note: If duplicate names exist (Indistinct), we might want to group them?
-            // For simplicity and full control: List all available "Balls".
-            
             currentPool.forEach((item, idx) => {
-                // Add a hidden ID or index to differentiate in logic if names are same?
-                // Visual distinction for duplicate names:
-                // We'll just list them. If name is same, user checks both usually.
-                
                 html += `<tr><td><strong>${item}</strong></td>`;
                 for (let colIdx = 0; colIdx < r; colIdx++) {
-                    // Key for constraint needs to handle duplicates. 
-                    // Let's use "ItemName_IndexInPool" logic implicitly or just use item string.
-                    // If we use item string, checking one "Red" checks all "Red" rows? No, better separate.
-                    // BUT for this UI, let's treat constraints by VALUE.
-                    // If I say "Red cannot be 1st", it applies to ALL Red balls if indistinct.
-                    
                     const isChecked = matrixConstraints[item] && matrixConstraints[item][colIdx] !== undefined 
                                       ? matrixConstraints[item][colIdx] 
                                       : false; 
@@ -458,27 +445,6 @@
 
         function calculateAndRender() {
             const r = parseInt(pickCountInput.value);
-            // "Repetition allowed" check is separate from "Indistinct items".
-            // e.g. Pool: [A, A]. Pick 2.
-            // If repetition allowed: A-A, A-A (same), etc.
-            // Actually, if we provide a pool, usually we draw FROM the pool (without replacement).
-            // "Repetition allowed" in typical permutation/combination calculators implies infinite pool.
-            // Given the UI allows specific quantities, "Repetition allowed" checkbox usually means "Infinite supply".
-            // Let's assume:
-            // Checkbox OFF: Draw from the pool (without replacement).
-            // Checkbox ON: Draw from pool WITH replacement (Infinite count of each type in pool).
-            
-            // However, the prompt context implies shuffling existing items mostly.
-            // Let's stick to standard behavior:
-            // Checkbox "Allow Repetition" -> Infinite supply of unique types found in pool?
-            // Or just replacement? Let's do replacement.
-            
-            // BUT: If "Indistinct", [A, A] without replacement -> A-A is valid. 
-            
-            // Logic Update:
-            // 1. Generate indices based permutations.
-            // 2. Map to values.
-            // 3. Deduplicate values (Set).
             
             if (currentPool.length === 0 || r <= 0) {
                 groupsOutput.innerHTML = '';
@@ -486,35 +452,13 @@
                 return;
             }
 
-            // Generate based on Indices to handle "Same name different object" logic correctly first
             const poolIndices = currentPool.map((_, i) => i);
-            
-            // If "Allow Repetition" (Replacement) is checked
-            // We shouldn't use indices of pool, but rather indices of UNIQUE types?
-            // Let's keep it simple: "Allow Repetition" = Standard Permutation with Repetition logic using the whole pool?
-            // Usually "Permutation with repetition" means n^r.
-            // Let's assume Checkbox ON means: We can pick the same index multiple times.
-            
-            let indexResults = [];
-            const allowRepetition = document.querySelector('input[type="checkbox"][id*="allow-repetition"]') ? document.querySelector('input[type="checkbox"][id*="allow-repetition"]').checked : false; // I removed the ID in HTML update, wait. 
-            // I removed the global checkbox in the previous HTML step? No, wait. 
-            // Ah, I see I didn't include the "Allow Repetition" checkbox in the new HTML.
-            // I will assume "Without Replacement" (using provided quantities) is the default for this "Bag" simulation.
-            // *Wait, I should re-add it or decide.* 
-            // Since user asked for quantities (e.g. 2 Red), usually this implies sampling without replacement.
-            // I will remove the "Repetition" logic for now to strictly follow the "Quantity" constraint.
-            // If user wants infinite, they usually don't set quantities.
-            
-            // Standard Permutation of Indices (P(n, k))
-            indexResults = getPermutationsIndices(poolIndices, r);
+            let indexResults = getPermutationsIndices(poolIndices, r);
 
-            // Filter Constraints (Index based? No, value based)
-            // Need to map indices to values to check constraints
             const allowedPerCol = [];
             for (let i = 0; i < r; i++) {
-                let allowedItems = []; // List of allowed strings
+                let allowedItems = []; 
                 let hasConstraint = false;
-                // Constraints are keyed by Item String
                 for (let key in matrixConstraints) {
                     if (matrixConstraints[key][i]) {
                         allowedItems.push(key);
@@ -524,39 +468,28 @@
                 allowedPerCol.push(hasConstraint ? allowedItems : null);
             }
 
-            // Convert to Values and Filter
             let valResults = [];
             indexResults.forEach(indices => {
                 const seq = indices.map(idx => currentPool[idx]);
-                
-                // Check Matrix Constraints
                 let valid = true;
                 for (let i = 0; i < seq.length; i++) {
                     const allowed = allowedPerCol[i];
-                    // If allowed is null, any item is fine.
-                    // If allowed is list, seq[i] must be in it.
                     if (allowed !== null && !allowed.includes(seq[i])) {
                         valid = false;
                         break;
                     }
                 }
-                
                 if (valid) valResults.push(seq);
             });
 
-            // Deduplicate (Crucial for Indistinct items)
-            // e.g. Red, Red -> [Red, Red] generated twice from indices (0,1) and (1,0)
             const uniqueSet = new Set();
             let finalResults = [];
             
             valResults.forEach(seq => {
-                // Method Logic (Combination / Circular)
                 let keySeq = [...seq];
-                
                 if (currentMethod === 'combination') {
                     keySeq.sort();
                 } else if (currentMethod === 'circular') {
-                    // Normalize rotation
                     let minStr = keySeq.join('||');
                     let bestRot = [...keySeq];
                     for(let i=1; i<keySeq.length; i++) {
@@ -577,7 +510,7 @@
                 }
             });
 
-            // Sort
+            // Standard lexicographical sort (for consistent display within groups)
             finalResults.sort();
             resultCountEl.textContent = `${finalResults.length} 通り`;
             renderGroups(finalResults);
@@ -595,6 +528,17 @@
             return res;
         }
 
+        // Helper to find original index of item to control sorting order
+        function getItemRank(val) {
+            // Remove suffix for name matching
+            const baseName = val.replace(/[①-⑳\(\)\d]/g, '');
+            // Find in itemsData
+            let idx = itemsData.findIndex(i => i.name === baseName);
+            // If strict match fails, try startsWith (though strict is better for robustness)
+            if(idx < 0) idx = itemsData.findIndex(i => val.startsWith(i.name));
+            return idx;
+        }
+
         function renderGroups(results) {
             groupsOutput.innerHTML = '';
             if (results.length === 0) return;
@@ -606,7 +550,14 @@
                 groups[key].push(seq);
             });
 
-            const sortedKeys = Object.keys(groups).sort();
+            // SORT MODIFICATION: Use item rank instead of alphabetical
+            const sortedKeys = Object.keys(groups).sort((a, b) => {
+                const rankA = getItemRank(a);
+                const rankB = getItemRank(b);
+                // If ranks are equal (shouldn't happen for distinct types) or not found, fallback to string sort
+                if (rankA === rankB) return a.localeCompare(b);
+                return rankA - rankB;
+            });
 
             sortedKeys.forEach(key => {
                 const groupItems = groups[key];
@@ -654,30 +605,13 @@
                     
                     const remainingSeqs = groupItems.map(s => s.slice(1));
                     const trie = buildTrie(remainingSeqs);
-
-                    function createBranch(label, childrenObj) {
-                        const branch = document.createElement('div');
-                        branch.className = 'tf-branch';
-                        const text = document.createElement('div');
-                        text.className = 'tf-nc';
-                        text.textContent = label;
-                        branch.appendChild(text);
-
-                        const childKeys = Object.keys(childrenObj).sort();
-                        if (childKeys.length > 0) {
-                            const conn = document.createElement('div');
-                            conn.className = 'tf-connector';
-                            branch.appendChild(conn);
-                            const childGroup = document.createElement('div');
-                            childGroup.className = 'tf-children';
-                            childKeys.forEach(k => {
-                                childGroup.appendChild(createBranch(k, childrenObj[k]));
-                            });
-                            branch.appendChild(childGroup);
-                        }
-                        return branch;
-                    }
-
+                    // Tree visualization logic...
+                    // Since trie keys are sorted alphabetically inside createBranch, 
+                    // we might want them to respect rank too? 
+                    // But usually branches are OK alphabetical. 
+                    // Let's strictly follow "Item Order" for the Root Groups (done above).
+                    // For branches, let's also apply rank sort for consistency.
+                    
                     const rootBranch = document.createElement('div');
                     rootBranch.className = 'tf-tree'; 
                     const rootText = document.createElement('div');
@@ -691,7 +625,11 @@
                         rootBranch.appendChild(conn);
                         const childGroup = document.createElement('div');
                         childGroup.className = 'tf-children';
-                        Object.keys(trie).sort().forEach(k => {
+                        
+                        // Apply Rank Sort to children keys too
+                        const sortedChildKeys = Object.keys(trie).sort((a,b) => getItemRank(a) - getItemRank(b));
+                        
+                        sortedChildKeys.forEach(k => {
                             childGroup.appendChild(createBranch(k, trie[k]));
                         });
                         rootBranch.appendChild(childGroup);
@@ -702,6 +640,33 @@
                 block.appendChild(content);
                 groupsOutput.appendChild(block);
             });
+        }
+
+        // Helper recursive function for tree with Rank Sorting
+        function createBranch(label, childrenObj) {
+            const branch = document.createElement('div');
+            branch.className = 'tf-branch';
+            const text = document.createElement('div');
+            text.className = 'tf-nc';
+            text.textContent = label;
+            branch.appendChild(text);
+
+            const childKeys = Object.keys(childrenObj);
+            if (childKeys.length > 0) {
+                // Apply Rank Sort
+                childKeys.sort((a, b) => getItemRank(a) - getItemRank(b));
+
+                const conn = document.createElement('div');
+                conn.className = 'tf-connector';
+                branch.appendChild(conn);
+                const childGroup = document.createElement('div');
+                childGroup.className = 'tf-children';
+                childKeys.forEach(k => {
+                    childGroup.appendChild(createBranch(k, childrenObj[k]));
+                });
+                branch.appendChild(childGroup);
+            }
+            return branch;
         }
 
         function buildTrie(sequences) {
