@@ -387,6 +387,7 @@
 
         function updatePool() {
             currentPool = [];
+            // リストの順番通りにプールを作成することで、インデックス＝優先度となる
             itemsData.forEach(item => {
                 for(let i=1; i<=item.count; i++) {
                     if (item.distinct) {
@@ -435,20 +436,23 @@
             matrixContainer.innerHTML = html;
         }
 
-        // --- CORE CALCULATION LOGIC ---
+        // --- CORE CALCULATION & SORTING LOGIC ---
 
+        // 名前そのものではなく、currentPool配列内の「登場順（インデックス）」で並び替える
+        // currentPoolは設定リストの上から順に作られるため、これでリスト順が厳守される
         function getItemIndex(val) {
-            const idx = itemsData.findIndex(d => val === d.name || val.startsWith(d.name));
-            return idx >= 0 ? idx : 9999;
+            const idx = currentPool.indexOf(val);
+            // 万が一見つからない場合は後ろへ（通常ありえない）
+            return idx >= 0 ? idx : 99999;
         }
 
-        // ソート関数: リストの上にあるものを優先する
         function compareSequences(seqA, seqB) {
             const len = Math.min(seqA.length, seqB.length);
             for(let i=0; i<len; i++) {
                 const idxA = getItemIndex(seqA[i]);
                 const idxB = getItemIndex(seqB[i]);
                 if (idxA !== idxB) return idxA - idxB;
+                // インデックスが同じ（全く同じ文字）なら文字列比較
                 if (seqA[i] !== seqB[i]) return seqA[i].localeCompare(seqB[i]);
             }
             return seqA.length - seqB.length;
@@ -498,15 +502,15 @@
             
             valResults.forEach(seq => {
                 let keySeq = [...seq];
+                
                 if (currentMethod === 'combination') {
-                    // 組合せ：要素を「登録順」に並び替えて正規化する
-                    keySeq.sort(compareSequences);
+                    // 組合せ：要素を「リスト順」に並び替えて正規化
+                    keySeq.sort((a, b) => getItemIndex(a) - getItemIndex(b));
                 } else if (currentMethod === 'circular') {
-                    // 円順列：回転しても変わらないものの中で、「登録順で先頭が最も若いもの」を代表にする
+                    // 円順列：回転パターンの中で「リスト順で最も若いもの」が先頭に来る形を代表とする
                     let minRot = [...keySeq];
                     for(let i=1; i<keySeq.length; i++) {
                         const rot = [...keySeq.slice(i), ...keySeq.slice(0, i)];
-                        // 文字列比較ではなく、登録順比較 (compareSequences) を使う
                         if (compareSequences(rot, minRot) < 0) {
                             minRot = rot;
                         }
@@ -521,7 +525,7 @@
                 }
             });
 
-            // 最終リストのソートも登録順で行う
+            // 最終結果もリスト順でソート
             finalResults.sort(compareSequences);
 
             resultCountEl.textContent = `${finalResults.length} 通り`;
@@ -551,13 +555,8 @@
                 groups[key].push(seq);
             });
 
-            // グループの表示順も登録順
-            const sortedKeys = Object.keys(groups).sort((a, b) => {
-                const idxA = getItemIndex(a);
-                const idxB = getItemIndex(b);
-                if (idxA !== idxB) return idxA - idxB;
-                return a.localeCompare(b);
-            });
+            // グループキー（先頭の要素）をリスト順でソート
+            const sortedKeys = Object.keys(groups).sort((a, b) => getItemIndex(a) - getItemIndex(b));
 
             sortedKeys.forEach(key => {
                 const groupItems = groups[key];
@@ -573,7 +572,7 @@
                 let labelText = "";
                 if(currentMethod === 'permutation') labelText = `「${key}」から始まる`;
                 else if(currentMethod === 'circular') labelText = `「${key}」を固定 (基準)`;
-                else labelText = `「${key}」を含む (辞書順)`;
+                else labelText = `「${key}」を含む (リスト順)`;
 
                 header.innerHTML = `
                     <span style="display:flex; align-items:center; gap:10px;">
@@ -619,12 +618,8 @@
                         const childGroup = document.createElement('div');
                         childGroup.className = 'tf-children';
                         
-                        const sortedChildKeys = Object.keys(trie).sort((a, b) => {
-                            const idxA = getItemIndex(a);
-                            const idxB = getItemIndex(b);
-                            if (idxA !== idxB) return idxA - idxB;
-                            return a.localeCompare(b);
-                        });
+                        // 樹形図の枝もリスト順にソート
+                        const sortedChildKeys = Object.keys(trie).sort((a, b) => getItemIndex(a) - getItemIndex(b));
 
                         sortedChildKeys.forEach(k => {
                             childGroup.appendChild(createBranch(k, trie[k]));
@@ -649,12 +644,8 @@
 
             const childKeys = Object.keys(childrenObj);
             if (childKeys.length > 0) {
-                childKeys.sort((a, b) => {
-                    const idxA = getItemIndex(a);
-                    const idxB = getItemIndex(b);
-                    if (idxA !== idxB) return idxA - idxB;
-                    return a.localeCompare(b);
-                });
+                // 子要素もリスト順でソート
+                childKeys.sort((a, b) => getItemIndex(a) - getItemIndex(b));
 
                 const conn = document.createElement('div');
                 conn.className = 'tf-connector';
@@ -683,7 +674,7 @@
 
         function getItemColor(val) {
             const idx = getItemIndex(val);
-            return idx < 9999 ? colors[idx % colors.length] : '#999';
+            return idx < 99999 ? colors[idx % colors.length] : '#999';
         }
 
         function createNode(val) {
